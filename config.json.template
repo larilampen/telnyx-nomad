@@ -1,0 +1,21 @@
+{
+    "pushbullet": {
+	"token": "your-api-token",
+	"device-id": "id-of-your-phone-or-other-device"
+    },
+    "telnyx": {
+	"apikey": "your-apikey"
+    },
+    "numbers": {
+	"+111111111111": {
+	    "name": "US",
+	    "message": "http://yoursite.com:4444/american.mp3"
+	},
+	"+441111111111": {
+	    "name": "UK",
+	    "message": "http://yoursite.com:4444/british.mp3"
+	}
+    },
+    "default-message": "http://yoursite.com:4444/hello.mp3",
+    "port": 4444
+}

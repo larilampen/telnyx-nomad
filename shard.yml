@@ -1,0 +1,17 @@
+name: telnyx
+version: 0.1.0
+
+authors:
+  - Lari Lampen <hello@larilampen.com>
+
+targets:
+  telnyx:
+    main: src/telnyx.cr
+
+dependencies:
+  kemal:
+    github: kemalcr/kemal
+
+crystal: 0.31.1
+
+license: MIT
