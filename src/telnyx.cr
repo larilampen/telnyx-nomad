@@ -9,7 +9,7 @@ require "kemal"
 require "digest/md5"
 require "http/client"
 require "json"
-require "logger"
+require "log"
 
 
 # These two channels are used to pass tasks to the secondary threads.
@@ -19,7 +19,6 @@ action_queue = Channel(Action).new(3)
 download_queue = Channel(DownloadTask).new(3)
 
 config = Config.new("config.json")
-log = Logger.new(STDOUT, level: Logger::WARN)
 
 
 # A notifier that can send messages via the Pushbullet API.
@@ -114,10 +113,10 @@ spawn do
     headers.add "Accept", "application/json"
     headers.add "Content-Type", "application/json"
 
-    log.info "Sending action '#{act[:action]}', cid #{act[:id]}, content: #{act[:content]}"
+    Log.info { "Sending action '#{act[:action]}', cid #{act[:id]}, content: #{act[:content]}" }
     res = HTTP::Client.post url, headers: headers, body: act[:content]
     unless res.success?
-      log.error "Request failed with code #{res.status_code}: #{res.body}"
+      Log.error { "Request failed with code #{res.status_code}: #{res.body}" }
     end
   end
 end
@@ -130,9 +129,9 @@ spawn do
     res = HTTP::Client.get item[:url]
     if res.success?
       File.write item[:filename], res.body
-      log.info "Saved recording in #{item[:filename]}"
+      Log.info { "Saved recording in #{item[:filename]}" }
     else
-      log.error "Download failed: #{res.status_code}: #{res.body}"
+      Log.error { "Download failed: #{res.status_code}: #{res.body}" }
     end
   end
 end
@@ -147,14 +146,14 @@ module Telnyx
   post "/sms" do |env|
     req = env.request.body
     if req.nil?
-      log.warn "Empty content received."
+      Log.warn { "Empty content received." }
       env.response.status_code = 400
       next
     end
 
     payload = req.gets_to_end
     filename = save_file "sms", "json", payload
-    log.info "Saved message to file #{filename}"
+    Log.info { "Saved message to file #{filename}" }
 
     data = JSON.parse(payload)["data"]["payload"]
     text = data["text"].as_s
@@ -168,7 +167,7 @@ module Telnyx
   post "/call" do |env|
     req = env.request.body
     if req.nil?
-      log.warn "Empty content received."
+      Log.warn { "Empty content received." }
       env.response.status_code = 400
       next
     end
@@ -182,11 +181,11 @@ module Telnyx
     # Events that take place after the call ends do not come with a
     # control ID, so we check them first.
     if event == "call.hangup"
-      log.info "Call finished."
+      Log.info { "Call finished." }
       next
     elsif event == "call.recording.saved"
       url = data["payload"]["recording_urls"]["mp3"].as_s
-      log.info "Recording saved."
+      Log.info { "Recording saved." }
       soundfile = outfilename.gsub(/json$/, "mp3")
       download_queue.send({url: url, filename: soundfile})
       notifier.notify "Recording saved as #{soundfile}, available at #{url}", "You missed a call!"
@@ -196,14 +195,14 @@ module Telnyx
     # At this point, a call is ongoing or starting, so there should be
     # a control ID available.
     id_control = data["payload"]["call_control_id"].as_s
-    log.info "Received call event #{event} for cid #{id_control}"
+    Log.info { "Received call event #{event} for cid #{id_control}" }
 
     case event
     when "call.initiated"
-      log.info "Call incoming, trying to answer"
+      Log.info { "Call incoming, trying to answer" }
       action_queue.send({id: id_control, action: "answer", content: ""})
     when "call.answered"
-      log.info "Call started, trying to enable recording + start playback"
+      Log.info { "Call started, trying to enable recording + start playback" }
       action_queue.send({id: id_control, action: "record_start",
                          content: "{\"format\": \"mp3\", \"channels\": \"single\"}"})
       target = data["payload"]["to"].as_s
@@ -211,11 +210,11 @@ module Telnyx
       action_queue.send({id: id_control, action: "playback_start",
                          content: "{\"audio_url\": \"#{answer_url}\"}"})
     when "call.playback.started"
-      log.info "Playback started (doing nothing)"
+      Log.info { "Playback started (doing nothing)" }
     when "call.playback.ended"
-      log.info "Playback ended (doing nothing)"
+      Log.info { "Playback ended (doing nothing)" }
     else
-      log.warn "Received unknown webhook: #{event} (doing nothing)"
+      Log.warn { "Received unknown webhook: #{event} (doing nothing)" }
     end
   end
 end
