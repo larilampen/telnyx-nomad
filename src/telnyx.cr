@@ -5,6 +5,8 @@
 #
 # MIT License
 
+require "./notifier.cr"
+
 require "kemal"
 require "digest/md5"
 require "http/client"
@@ -21,33 +23,14 @@ download_queue = Channel(DownloadTask).new(3)
 config = Config.new("config.json")
 
 
-# A notifier that can send messages via the Pushbullet API.
-class Notifier
-  def initialize(token, device_id : String)
-    @headers = HTTP::Headers.new
-    @headers.add("Access-Token", token)
-    @headers.add("Content-Type", "application/json")
-    @device_id = device_id
-  end
-
-  def notify(text, title = "Notification")
-    data = {
-      type: "note",
-      title: title,
-      device_iden: @device_id,
-      body: text
-    }
-    HTTP::Client.post "https://api.pushbullet.com/v2/pushes",
-                      headers: @headers, body: data.to_json
-  end
-end
-
 
 # The configuration file contains the needed tokens and API keys, plus
 # some other settings.
 class Config
-  getter pb_token : String
-  getter pb_device : String
+  getter pb_token : String? = nil
+  getter pb_device : String? = nil
+  getter tg_token : String? = nil
+  getter tg_chat : Int32? = nil
   getter telnyx_apikey : String
   getter port : Int32
 
@@ -59,8 +42,14 @@ class Config
     end
 
     conf = JSON.parse(File.read(filename))
-    @pb_token = conf["pushbullet"]["token"].as_s
-    @pb_device = conf["pushbullet"]["device-id"].as_s
+    if conf.as_h.has_key? "pushbullet"
+      @pb_token = conf["pushbullet"]["token"].as_s?
+      @pb_device = conf["pushbullet"]["device-id"].as_s?
+    end
+    if conf.as_h.has_key? "telegram"
+      @tg_token = conf["telegram"]["token"].as_s?
+      @tg_chat = conf["telegram"]["chat-id"].as_i?
+    end
     @telnyx_apikey = conf["telnyx"]["apikey"].as_s
     default_url = conf["default-message"].as_s
     @port = conf["port"].as_i
@@ -140,7 +129,13 @@ end
 module Telnyx
   VERSION = "0.1.0"
 
-  notifier = Notifier.new(config.pb_token, config.pb_device)
+  notifiers = [] of Notifier
+  if (tok = config.pb_token) && (pbd = config.pb_device)
+    notifiers << PushbulletNotifier.new(tok, pbd)
+  end
+  if (tok = config.tg_token) && (tgc = config.tg_chat)
+    notifiers << TelegramNotifier.new(tok, tgc)
+  end
 
   # Receiving SMS is simple: just store it and send a notification.
   post "/sms" do |env|
@@ -159,7 +154,9 @@ module Telnyx
     text = data["text"].as_s
     from = data["from"]["phone_number"].as_s
     to = config.name(data["to"].as_s)
-    notifier.notify text, "Text message from #{from} to #{to}"
+    notifiers.each do |notifier|
+      notifier.notify text, "Text message from #{from} to #{to}"
+    end
   end
 
   # Processing a call is more complicated due to the many state
@@ -188,7 +185,9 @@ module Telnyx
       Log.info { "Recording saved." }
       soundfile = outfilename.gsub(/json$/, "mp3")
       download_queue.send({url: url, filename: soundfile})
-      notifier.notify "Recording saved as #{soundfile}, available at #{url}", "You missed a call!"
+      notifiers.each do |notifier|
+        notifier.notify "Recording saved as #{soundfile}, available at #{url}", "You missed a call!"
+      end
       next
     end
 

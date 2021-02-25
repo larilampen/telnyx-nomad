@@ -3,6 +3,10 @@
 	"token": "your-api-token",
 	"device-id": "id-of-your-phone-or-other-device"
     },
+    "telegram": {
+	"token": "your-bot-token",
+	"chat-id": 11111
+    },
     "telnyx": {
 	"apikey": "your-apikey"
     },

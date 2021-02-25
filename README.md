@@ -2,7 +2,7 @@
 
 I will discuss the main use case for this program in a blog post that I haven't written yet.
 
-This program implements a server that accepts webhook connections from [Telnyx](https://refer.telnyx.com/asgvm) to receive SMS messages and calls. In the latter case, it also acts as an answering machine by playing a recorded message and recording the call into an mp3 file. Notifications are sent to the recipient using [Pushbullet](https://www.pushbullet.com/).
+This program implements a server that accepts webhook connections from [Telnyx](https://refer.telnyx.com/asgvm) to receive SMS messages and calls. In the latter case, it also acts as an answering machine by playing a recorded message and recording the call into an mp3 file. Notifications are sent to the recipient using either [Pushbullet](https://www.pushbullet.com/) or a [Telegram](https://www.telegram.org/) bot (or both).
 
 The program is written in Crystal using the [Kemal](https://kemalcr.com/) framework. The server is self-contained (it doesn't need another server like Apache or nginx) and can (and should) be run with normal user credentials.
 
@@ -23,7 +23,13 @@ If you don't have Crystal yet, you need to first [install](https://crystal-lang.
 
 Look at the provided template (if you followed the above steps, `config.json` now contains a copy of it) to see the structure of the configuration file. There are three types of items in it.
 
-**Credentials**: For Pushbullet, the API token (unique to each user account) is needed, along with a device ID (which specifies which of your devices the notifications will be sent to). For Telnyx, an API key is required.
+**Notifications**: You can specify credentials for Pushbullet or Telegram. If both are defined, notifications will be sent to both. If neither is defined, no notifications will be sent, but the program will still log events and answer calls.
+
+For Pushbullet, the API token (unique to each user account) is needed, along with a device ID (which specifies which of your devices the notifications will be sent to).
+
+For Telegram, first create a bot following the [official instructions](https://core.telegram.org/bots). You will receive an access token for the bot. Additionally, a chat ID needs to be specified to ensure messages are sent to you only, and not to anyone who happens to chat to the bot.
+
+**Credentials**:  For Telnyx, an API key is required.
 
 **Numbers**: A list of the phone numbers you use at Telnyx. Each has a name (used instead of the number simply to keep the notifications shorter and easier to read) and a message URL, which is the message that will be played when a call is received.
 
