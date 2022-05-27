@@ -10,9 +10,8 @@ targets:
 
 dependencies:
   kemal:
-    github: makisu/kemal
-    commit: 058505205f692e354abb50785ffe8fd3aa880e56
+    github: kemalcr/kemal
 
-crystal: 0.35.1
+crystal: 1.4.1
 
 license: MIT

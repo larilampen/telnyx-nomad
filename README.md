@@ -4,6 +4,8 @@ I will discuss the main use case for this program in a blog post that I haven't 
 
 This program implements a server that accepts webhook connections from [Telnyx](https://refer.telnyx.com/asgvm) to receive SMS messages and calls. In the latter case, it also acts as an answering machine by playing a recorded message and recording the call into an mp3 file. Notifications are sent to the recipient using either [Pushbullet](https://www.pushbullet.com/) or a [Telegram](https://www.telegram.org/) bot (or both).
 
+Support for receiving SMS via [Twilio](https://www.twilio.com/) was added later, making the name something of a misnomer.
+
 The program is written in Crystal using the [Kemal](https://kemalcr.com/) framework. The server is self-contained (it doesn't need another server like Apache or nginx) and can (and should) be run with normal user credentials.
 
 

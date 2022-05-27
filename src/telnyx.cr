@@ -12,6 +12,7 @@ require "digest/md5"
 require "http/client"
 require "json"
 require "log"
+require "uri/params"
 
 
 # These two channels are used to pass tasks to the secondary threads.
@@ -157,6 +158,38 @@ module Telnyx
     notifiers.each do |notifier|
       notifier.notify text, "Text message from #{from} to #{to}"
     end
+  end
+
+  # Receive SMS via Twilio
+  post "/twisms" do |env|
+    req = env.request.body
+    if req.nil?
+      Log.warn { "Empty content received." }
+      env.response.status_code = 400
+      next
+    end
+
+    payload = req.gets_to_end
+    filename = save_file "twi", "txt", payload
+    Log.info { "Saved message to file #{filename}" }
+
+    p_to = nil
+    p_body = nil
+    URI::Params.parse(payload) do |k,v|
+     if k == "To"
+        p_to = v
+      elsif k == "Body"
+        p_body = v
+      end
+    end
+    if p_body
+      notifiers.each do |notifier|
+        notifier.notify p_body, "Text (twi) to #{p_to}"
+      end
+    end
+
+    # "HTTP 204 No Content"
+    env.response.status_code = 204
   end
 
   # Processing a call is more complicated due to the many state
